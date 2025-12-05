@@ -16,7 +16,7 @@ DEFAULT_ASG_CHECK="?!not_null(Tags[?Key == 'aws:autoscaling:groupName'.Value)"
 declare -a VALID_PACKAGE_MANAGERS=(dnf yum apt pacman snap)
 declare -a REQUIRED_PACKAGES=(jq openssl aws)
 declare -a ERROR_CHECK=(VALIDATE_VAR VALIDATE_JSON GET_PACKAGE_MANAGER GET_SHELL VALIDATE_PACKAGES)
-declare -a workerPids()
+declare -a workerPids=()
 declare -a usedFDs=()
 
 declare -A VARIABLE_DESC
@@ -72,7 +72,7 @@ console_logger(){
     local white="\e[40;0;37m"
     local clear="\e[0m"
     local prefix=""
-    local error_level=${desired_error_level:-}
+    local error_level=${desired_error_level:-$DEFAULT_GLOBAL_ERROR_LEVEL}
     local message_level=$1
     local message=$2
     
@@ -104,12 +104,13 @@ error_check(){
             local POSSIBLE_MANAGERS=("${@:2}")
             declare -g PACKAGE_MANAGER
             for MANAGER in "${POSSIBLE_MANAGERS[@]}" ; do
-                if which $MANAGER &>/dev/null ; then PACKAGE_MANAGER="$MANAGER" ; break ; fi
+                if which "$MANAGER" &>/dev/null ; then PACKAGE_MANAGER="$MANAGER" ; break ; fi
             done
-            [[ -z "$PACKAGE_MANAGER" ]] && raise_error 1105 ; fi
+            [[ -z "$PACKAGE_MANAGER" ]] && raise_error 1105
             ;;
         GET_SHELL )
             [[ ! ${SHELL##*/} == "bash" ]] && raise_error 1109
+            ;;
         VALIDATE_PACKAGES )
             local REQUIRED_PACKAGES=("${@:2}")
             for PACKAGE in "${REQUIRED_PACKAGES[@]}" ; do
@@ -336,12 +337,12 @@ do
         -b | --forks)               bgProc=$2 ; shift 2 ;;
         -z | --zone)                availabilityZone=$2 ; shift 2 ;;
         -m | --method)              storageMethod=$2 ; shift 2 ;;
-        -e | --error-level)         $DESIRED_ERROR_LEVEL=$2 ; shift 2 ;;
+        -e | --error-level)         DESIRED_ERROR_LEVEL=$2 ; shift 2 ;;
         -a | --includeautoscaling)  asgString="" ; shift ;;
              --skip-package-verify) skipPackageVerify="True" ; shift ;;
         -h | --help)                help_menu ; exit 0 ;;
         -v | --version)             echo "Version 3.1" ; exit 0 ;;
-        /?)                         echo "Invalid Option: Please consult the help documents with -h or --help"
+        /?)                         echo "Invalid Option: Please consult the help documents with -h or --help" ;;
         --)                         shift ; break ;;
     esac
 done
